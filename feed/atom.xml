@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>tkarabela's notebook</title><link href="https://tkarabela.github.io/" rel="alternate"></link><link href="https://tkarabela.github.io/feed/atom.xml" rel="self"></link><id>https://tkarabela.github.io/</id><updated>2021-06-11T00:00:00+02:00</updated><entry><title>Understanding PhotoPolarAlign: Interactive Polar Alignment Routine Using Platesolving</title><link href="https://tkarabela.github.io/posts/2021/understanding-photopolaralign.html" rel="alternate"></link><published>2021-06-11T00:00:00+02:00</published><updated>2021-06-11T00:00:00+02:00</updated><author><name>tkarabela</name></author><id>tag:tkarabela.github.io,2021-06-11:/posts/2021/understanding-photopolaralign.html</id><summary type="html">&lt;p&gt;Finding the celestial pole and aligning your telescope mount to it is something that any equatorial mount user knows
+well. There are different ways to go about it: visually through a polar scope (or with a dedicated polar scope camera),
+by measuring drift far away from the pole, or by …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Finding the celestial pole and aligning your telescope mount to it is something that any equatorial mount user knows
+well. There are different ways to go about it: visually through a polar scope (or with a dedicated polar scope camera),
+by measuring drift far away from the pole, or by platesolving near the pole. This last method
+- &lt;a href="https://www.sharpcap.co.uk/sharpcap/features/polar-alignment"&gt;implemented in recent versions of SharpCap&lt;/a&gt; - is a
+quick and precise procedure and it is my favourite way to "polar align".&lt;/p&gt;
+&lt;p&gt;In this post I will explore the principles underpinning this approach. I make no claim to having invented this; my
+interest started with using SharpCap in which such polar alignment is implemented. Dr. Robin Glover (the author of
+SharpCap) credits the method to Dr. Themos Tsikas (&lt;a href="https://twitter.com/themostsikas"&gt;@themostsikas&lt;/a&gt;) and his
+PhotoPolarAlign tool, which can be found &lt;a href="https://github.com/ThemosTsikas/PhotoPolarAlign"&gt;on GitHub&lt;/a&gt;. What follows is
+my understanding of the method from reading PhotoPolarAlign source code, my user experience with SharpCap, and
+experimenting in Python. These notes will hopefully be useful to others interested in the topic.&lt;/p&gt;
+&lt;p&gt;My Python code, as well as images from a polar alignment session I did for testing, are
+both &lt;a href="https://github.com/tkarabela/platesolve-polar-align"&gt;available on GitHub&lt;/a&gt;. The platesolving part was done
+with &lt;a href="http://www.hnsky.org/astap.htm"&gt;ASTAP&lt;/a&gt;, coordinate transformations
+with &lt;a href="https://docs.astropy.org/en/stable/"&gt;AstroPy&lt;/a&gt;, and numerical math with &lt;a href="https://numpy.org/"&gt;NumPy&lt;/a&gt;
+and &lt;a href="https://www.scipy.org/"&gt;SciPy&lt;/a&gt;. It's all relatively basic as far as astronomy/math goes, and it should be easy to
+implement given some astronomy library and platesolving software.&lt;/p&gt;
+&lt;h2&gt;The Algorithm (From User's Perspective)&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Align the mount roughly to celestial pole.&lt;/li&gt;
+&lt;li&gt;Take &lt;strong&gt;image A&lt;/strong&gt; with the telescope in the upright position (RA=0°).&lt;/li&gt;
+&lt;li&gt;Rotate the RA axis by about 90 degrees.&lt;/li&gt;
+&lt;li&gt;Take &lt;strong&gt;image B&lt;/strong&gt; with the telescope in the sideways position (RA=90°).&lt;/li&gt;
+&lt;li&gt;Now the software knows where the RA axis is pointing on the celestial sphere. Iteratively apply corrections to the
+   ALT/AZ base of your mount as suggested by the software, until the RA axis points close enough to the celestial pole.
+   At every step, new &lt;strong&gt;image I&lt;/strong&gt; is taken and suggested corrections are updated accordingly.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;It is important to only change RA and ALT/AZ when prompted and never touch anything else (change DEC, rotate the camera,
+etc.). As long as the instructions are followed, you can get good polar alignment with a guidescope and guide camera.&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-sharpcap.png"&gt;
+  &lt;figcaption&gt;Interactive polar alignment session in SharpCap&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;h2&gt;The Algorithm (From Software's Perspective)&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Platesolve &lt;strong&gt;image A&lt;/strong&gt; (that is, find transformation from "local" pixel coordinates to "world" RA/DEC coordinates),
+   setting its center as point $A$.&lt;/li&gt;
+&lt;li&gt;Platesolve &lt;strong&gt;image B&lt;/strong&gt;, setting its center as point $B$.&lt;/li&gt;
+&lt;li&gt;Find the origin ($R_0$) of a rotation that transforms coordinate system of &lt;strong&gt;image A&lt;/strong&gt; to that of &lt;strong&gt;image B&lt;/strong&gt; (that
+   is, find a point that has the same "world" RA/DEC coordinates and "local" pixel coordinates in both images).&lt;/li&gt;
+&lt;li&gt;Find the celestial pole coordinates ($CP$).&lt;/li&gt;
+&lt;li&gt;Compute relative position of $R_0$ with respect to $CP$. This is the initial error / suggested correction.&lt;/li&gt;
+&lt;li&gt;For "improvement" &lt;strong&gt;image I&lt;sub&gt;1&lt;/sub&gt;&lt;/strong&gt; and subsequent &lt;strong&gt;images I&lt;sub&gt;i&lt;/sub&gt;&lt;/strong&gt;:&lt;ul&gt;
+&lt;li&gt;Platesolve &lt;strong&gt;image I&lt;sub&gt;i&lt;/sub&gt;&lt;/strong&gt;, setting its center as $I_i$.&lt;/li&gt;
+&lt;li&gt;Find the relative position of $I_i$ and $B$ and apply this offset to $R_0$, creating new point $R_i$.&lt;/li&gt;
+&lt;li&gt;Compute relative position of $R_i$ with respect to $CP$. This is the improved error / suggested correction.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;(In the following text I will discuss two implementation variants of this general idea: the "simple" version and the
+"improved" version.)&lt;/p&gt;
+&lt;p&gt;Step 3 is where the "magic" happens; once we know the initial position of the RA axis, we can compute what offset is
+necessary and guide the user through the ALT/AZ changes.&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-session-overview.svg"&gt;
+  &lt;figcaption&gt;A polar alignment session as viewed by the algorithm ("simple" version)&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;h2&gt;Some Caveats Of A Naive Implementation&lt;/h2&gt;
+&lt;p&gt;Looking at it in more detail, there are some considerations:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;For "world" coordinates given as RA/DEC, there is a difference between the reference equinox (J2000) and observation
+  time. The North celestial pole is &lt;em&gt;not&lt;/em&gt; at RA=0°, DEC=90° in the J2000 reference frame (as of 2021, anyway).
+  Platesolving will probably give you J2000 coordinates. This is what Step 4 refers to.&lt;/li&gt;
+&lt;li&gt;The Earth moves! Platesolving computes RA/DEC coordinates, but we're trying to correct ALT/AZ. Unless the whole
+  procedure is instantaneous, there will be some drift in the images which you may want to compensate for. (The movement
+  in RA axis is about 360° per 24 hours = 15° per hour = 15 arcmin per minute, however this only translates 1:1 to
+  "great circle" distance at the celestial equator, the distances near the pole are much less).&lt;/li&gt;
+&lt;li&gt;The total alignment error can be computed equally well in any spherical coordinate system (eg. RA/DEC J2000), but the
+  per-axis corrections are best given in ALT/AZ. This can be achieved using proper RA/DEC to ALT/AZ conversion (using
+  observation location and time), or by using the local coordinate system from image A (according to the instructions,
+  the horizontal axis should be roughly azimuth, the vertical axis should be roughly altitude).&lt;/li&gt;
+&lt;li&gt;Transforming "local" pixel coordinates to "world" RA/DEC or ALT/AZ coordinates involves projecting a plane onto a
+  sphere. With the &lt;a href="https://en.wikipedia.org/wiki/Gnomonic_projection"&gt;Gnomic projection&lt;/a&gt; this means that image scale is
+  actually not a constant, but increases with distance from the center (imagine an ultrawide rectilinear lens).
+  Measuring angular distance in pixels, particularly with points far outside of the image FoV, will incur an error
+  compared to the true "great circle" distance. (This may still be negligible, as in of the order of a single pixel for
+  relevant image scales and distances, though).&lt;/li&gt;
+&lt;li&gt;Atmospheric refraction means that the true celestial pole is in a slightly different location than it appears to be.
+  This effect is altitude dependent (objects lower in the sky are more refracted; observation sites closer to Earth's
+  equator will see the celestial pole lower in their sky and thus more affected by refraction).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;The Core Idea - Solving The Rotation&lt;/h2&gt;
+&lt;p&gt;Beauty of the PhotoPolarAlign method is in that it doesn't require you to:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;know the exact initial RA/DEC (mis)alignment of your camera, or have it be fixed to the RA axis,&lt;/li&gt;
+&lt;li&gt;know the exact amount rotation in RA you perform,&lt;/li&gt;
+&lt;li&gt;see the celestial pole (or any particular stars) in your image.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;All you need is two images in different RA positions, and the algorithm figures out the axis of the rotation from that,
+even if it is outside the view.&lt;/p&gt;
+&lt;p&gt;For simplicity, let's look at the case when the center of rotation is visible first. It must be visible in both images,
+because it's the only point which doesn't actually move with the rotation. Points around it experience a little
+movement, more distant parts of the image have even more movement (as measured by difference in "local" pixel
+coordinates for a given fixed "world" coordinate, eg. a star). The amount of movement is proportional to the rotation
+angle, but any non-zero angle gives the same general structure: a single point with no movement, and movement increasing
+with distance from that point.&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-rotation-illustration-1.jpg"&gt;
+  &lt;figcaption&gt;Center of rotation has the same pixel coordinates in both images&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Let's consider the more general case when the center of rotation is outside the field of view. Platesolving in ASTAP
+gives the Gnomic (rectilinear) projection, so that we know where the view is pointed on the celestial sphere and what is
+its rotation. The projection is valid regardless of focal length or sensor size - these just determine what "central
+crop" of the projection plane is visible (in a world with perfect optics, etc.). The center of rotation may lie on local
+coordinates which are outside the image/sensor, but if we just had a larger sensor, we would see it at those
+coordinates.&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-rotation-illustration-2.jpg"&gt;
+  &lt;figcaption&gt;The general case - images do not intersect, center of rotation is outside both, but it still has the same
+  pixel coordinates with respect to each of them (if we extend the coordinate system beyond each image)&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Practically speaking, we need to find a fixed point of the rotation, which is the point (in global coordinates, let's
+say) that minimizes distance between its images in the local coordinates. There should be a single global minimum with
+distance zero.&lt;/p&gt;
+&lt;p&gt;This optimization problem can be solved numerically. It can be practical to formulate it in terms of image A local
+coordinates. It looks pretty well-behaved.&lt;/p&gt;
+&lt;p&gt;The original PhotoPolarAlign implementation (link
+to &lt;a href="https://github.com/ThemosTsikas/PhotoPolarAlign/blob/8982505a0ae2f5933cd73b68e680ad97a0fdb6fd/PPA.py#L1091"&gt;relevant part of code&lt;/a&gt;)
+uses &lt;a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.broyden1.html"&gt;Broyden's method&lt;/a&gt; to solve it,
+though I guess any reasonable algorithm will be able to handle it; there is little need to get very precise solution, as
+the differences will be orders of magnitude smaller than one pixel.&lt;/p&gt;
+&lt;p&gt;The original implementation finds the root of function $f(x_A, y_A) = (x_A - x_B, y_A - y_B)$, where $x_A$ is a pixel
+coordinate in A and $x_B = x_B(J2000(x_A, y_A))$ is the same "world" point represented as pixel coordinate in B. I've tried
+to do the same with minimizing squares: $f(x_A, y_A) = (x_A - x_B)^2 + (y_A - y_B)^2$
+and &lt;a href="https://docs.scipy.org/doc/scipy/reference/optimize.minimize-neldermead.html"&gt;Nelder-Mead&lt;/a&gt; and got effectively the
+same solution.&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-rotation-solve.svg"&gt;
+  &lt;figcaption&gt;Problem space of the optimization&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The graph above shows the problem space for the sum of squares formulation. The distance between $R_0$ coordinates in A
+and B is $\sqrt{3.3\times10^{-9}}$ pixels, ie. about 0.0001 arcseconds.&lt;/p&gt;
+&lt;h2&gt;Analyzing A Polar Alignment Session&lt;/h2&gt;
+&lt;p&gt;To better understand the method, I've recorded a polar alignment session in SharpCap with a 280mm guidescope mounted on
+iOptron SkyGuider Pro (which itself was turned off), giving just over 1° FoV as recommended by SharpCap. Data is
+available &lt;a href="https://github.com/tkarabela/platesolve-polar-align"&gt;here on GitHub&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I'm aware of two caveats regarding the data:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The location entered in SharpCap settings was a bit off (in SharpCap: 50.2N, 14.9E; in reality: 50.1N, 14.4E). I'm not
+  sure how much difference does it make. I did not use the refraction functionality.&lt;/li&gt;
+&lt;li&gt;I didn't test the resulting polar alignment with other method to try and quantify the error. In my experience,
+  SharpCap alignment works pretty well, but due to the indirect nature of the method it's not obvious from the data that
+  the results are correct.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;figure&gt;
+&lt;table&gt;
+&lt;caption&gt;Description of test session&lt;/caption&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;th&gt;Observation site&lt;/th&gt;
+&lt;td&gt;approx. 50.1° North, 14.4° East (Prague, Czech Republic)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;th&gt;Observation time&lt;/th&gt;
+&lt;td&gt;around 2021-05-31 00:30 GMT+2 (2021-05-30 22:30 GMT), 15 minute session&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;th&gt;Telescope&lt;/th&gt;
+&lt;td&gt;ZWO 60/280 finderscope (&lt;a href="https://astronomy-imaging-camera.com/product/finder-and-guider-scope" target="_blank"&gt;link&lt;/a&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;th&gt;Camera&lt;/th&gt;
+&lt;td&gt;ZWO ASI 290MM mini (&lt;a href="https://astronomy-imaging-camera.com/product/asi290mm-mini-mono" target="_blank"&gt;link&lt;/a&gt;), 1936 &amp;times; 1096 pixels @ 2.9 μm&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;th&gt;Mount&lt;/th&gt;
+&lt;td&gt;iOptron SkyGuider Pro (turned off) w/ iOptron AltAz base, on photo tripod&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;According to SharpCap, the inital alignment error was 3°50'44", with the final error being about 20" or &lt;em&gt;Excellent&lt;/em&gt;, as
+described by SharpCap. (It's always nice to see the dark green box after fiddling with the iOptron base.) Though the
+math works out to precise numbers, it feels most natural to me to measure the error in arcminutes. This is the session
+as evaluated by SharpCap:&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-evaluation-shrapcap.svg"&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Note that the adjustments have been guided by these SharpCap results, with the goal to minimize error as reported by
+SharpCap.&lt;/p&gt;
+&lt;h2&gt;The "Simple" Implementation&lt;/h2&gt;
+&lt;p&gt;I implemented the algorithm described above using Python, AstroPy and ASTAP. In this "simple" version, I'm:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;using RA/DEC J2000 coordinates as they come from the platesolving, without considering rotation of the Earth between
+  frames (note the whole session lasts 15 minutes), and&lt;/li&gt;
+&lt;li&gt;working in "local" coordinate space of image A (pixels), measuring angular distances with pixels and assuming that X/Y
+  are aligned with AZ/ALT.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When evaluating the pictures I recorded during the live session with SharpCap, I got this result:&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-evaluation-python-simple.svg"&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The evaluated error gets down to about 6'45" before settling at 13'30"; a major difference to SharpCap's result of 20".
+Comparing the data you can see a large offset in AZ as well as the error increasing over time compared to no such trend
+in the SharpCap dataset.&lt;/p&gt;
+&lt;h2&gt;The "Improved" Implementation&lt;/h2&gt;
+&lt;p&gt;After more experimentation I arrived at what I call the "improved" version. This one more closely follows
+PhotoPolarAlign code and adds one additional refinement not present in PhotoPolarAlign.&lt;/p&gt;
+&lt;p&gt;In the "improved" version:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;after finding $R_0$, everything is done in ALT/AZ coordinates, using actual observation time of each image (Earth's
+  rotation is accounted for, no error due to projection distorsion in measuring distances), and&lt;/li&gt;
+&lt;li&gt;in the $R_0$ finding procedure, Earth's rotation is also accounted for when projecting from pixels in A to RA/DEC and
+  back to pixels in B.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The second point is not done in PhotoPolarAlign. I've implemented it so that it can use the existing RA/DEC J2000
+projection to/from pixels, so it's not actual ALT/AZ, but the movement should be virtually the same. In the test
+session (which has 1 minute delay between A and B images) it has a minor effect on the error compared to SharpCap.&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-evaluation-python-improved-timecomp.svg"&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The evaluated error gets down to 30" before settling at 1'25". This is the closest I was able to get to the SharpCap
+results, and after the initial disappointing numbers it looks like a viable implementation. Note that these are results
+from one session, using one image scale, without independent verification of the error. However, it looks to me that it
+behaves quite similarly.&lt;/p&gt;
+&lt;p&gt;Without compensating Earth's rotation in computing $R_0$ it looks like this:&lt;/p&gt;
+&lt;figure&gt;
+  &lt;img src="https://tkarabela.github.io/images/2021/polaralign-evaluation-python-improved.svg"&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The results are a tad worse, both in terms of the total error (gets to 1"12', final 1"38') and looking at the AZ/ALT
+axes. The $R_0$ correction seems preferable.&lt;/p&gt;
+&lt;h2&gt;Appendix: The "Simple" Implementation In Python&lt;/h2&gt;
+&lt;p&gt;Below is the main code of my "simple" implementation, you can find
+the &lt;a href="https://github.com/tkarabela/platesolve-polar-align"&gt;full code on GitHub&lt;/a&gt;, including the "improved" variant.&lt;/p&gt;
+&lt;p&gt;See also the original &lt;a href="https://github.com/ThemosTsikas/PhotoPolarAlign"&gt;PhotoPolarAlign on GitHub&lt;/a&gt;, which includes its
+version of the algorithm as well as GUI.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# All values &amp;quot;*_pix&amp;quot; are given in A local coordinates (ie. pixels)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# step (1)&lt;/span&gt;
+&lt;span class="n"&gt;A_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_J2000&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;A_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;J2000_to_pix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;A_J2000&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# step (2)&lt;/span&gt;
+&lt;span class="n"&gt;B_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_J2000&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;B&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;B_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;J2000_to_pix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;B_J2000&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# step (3)&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;displacement_error_squared&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;pix&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;coord&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pix_to_J2000&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;pix&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;pix2&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;J2000_to_pix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;B&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;coord&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;np&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sum&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="n"&gt;pix&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;pix2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="n"&gt;res&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;scipy&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;optimize&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;minimize&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;displacement_error_squared&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;A_pix&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;method&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;nelder-mead&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;R0_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;res&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt;
+&lt;span class="n"&gt;R0_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pix_to_J2000&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;R0_pix&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# step (4)&lt;/span&gt;
+&lt;span class="n"&gt;NCP_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;SkyCoord&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;ra&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;dec&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;90&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;frame&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;fk5&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;unit&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;deg&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;equinox&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;J2000&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;NCP_to_date_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;SkyCoord&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;ra&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;dec&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;90&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;frame&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;fk5&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;unit&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;deg&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;equinox&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;get_time&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;transform_to&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;FK5&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;equinox&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;J2000&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;span class="n"&gt;NCP_to_date_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;J2000_to_pix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;NCP_to_date_J2000&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# steps (5), (6)&lt;/span&gt;
+&lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;I&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;all_image_names&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;:]:&lt;/span&gt;
+    &lt;span class="n"&gt;I_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_J2000&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;I&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;I_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;J2000_to_pix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;I_J2000&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="n"&gt;offset_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;I_pix&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;B_pix&lt;/span&gt;
+    &lt;span class="n"&gt;Ri_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;R0_pix&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;offset_pix&lt;/span&gt;
+    &lt;span class="n"&gt;Ri_J2000&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;pix_to_J2000&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Ri_pix&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;error_pix&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Ri_pix&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;NCP_to_date_pix&lt;/span&gt;
+    &lt;span class="n"&gt;error_arcmin&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;error_pix&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="n"&gt;arcsec_per_pix&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt; &lt;span class="mi"&gt;60&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</content><category term="2021"></category><category term="Python"></category><category term="Astronomy"></category></entry></feed>

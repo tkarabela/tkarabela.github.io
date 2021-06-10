@@ -1,0 +1,295 @@
+@import url("pygment.css");
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 52em;
+    margin: 2em auto;
+    padding: 0 1em;
+    background: #fdfdfd !important;
+}
+
+.top-navigation h1 {
+    text-transform: uppercase;
+    font-size: 100%;
+    display: inline-block;
+}
+
+h2.entry-title {
+    font-weight: 400;
+    font-size: 230%;
+    color: black;
+    text-decoration: none;
+    margin: 0;
+    text-align: center;
+}
+
+.entry-header {
+    margin: 5em 0;
+}
+
+.post-info {
+    margin: 1em 2em 0;
+    color: #999;
+    text-align: center;
+}
+
+.tags {
+    display: inline-block;
+}
+
+.tags a {
+    margin-left: 1em;
+}
+
+.tags a:before {
+    content: "#";
+}
+
+a {
+    color: inherit;
+    text-decoration: inherit;
+}
+
+.entry-content a {
+    color: #555;
+    text-decoration: underline;
+}
+
+p, li {
+    text-align: justify;
+    hyphens: auto;
+}
+
+li {
+    margin: .25em 0;
+}
+
+ul, ol {
+    padding: 0 2.5em;
+}
+
+figure {
+    margin: 4em auto;
+    padding: 0 2em;
+    text-align: center;
+}
+
+figure figcaption {
+    margin: 1em 5em 0;
+    font-size: 95%;
+    font-style: italic;
+}
+
+figure img {
+    max-width: 100%;
+}
+
+figure table {
+    text-align: initial;
+    margin: 0 auto;
+}
+table caption {
+    font-weight: 700;
+    margin: 0 0 1em;
+}
+
+table td, table th {
+    padding: .2em 1em;
+}
+
+h2 {
+    margin: 3em 0 1em;
+    font-size: 140%;
+    color: #111;
+}
+
+div.highlight {
+    margin: 1em 0;
+    padding: 1.5em;
+    overflow: scroll;
+}
+
+div.highlight pre {
+    line-height: 1.4;
+    font-size: 95%;
+    margin: 0;
+}
+
+@import url("pygment.css");
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 52em;
+    margin: 2em auto;
+    padding: 0 1em;
+    background: #fdfdfd !important;
+}
+
+h2.entry-title {
+    font-weight: 400;
+    font-size: 230%;
+    color: black;
+    text-decoration: none;
+    margin: 0;
+    text-align: center;
+}
+
+p.signature {
+    text-align: right;
+    font-style: italic;
+}
+
+.entry-header {
+    margin: 5em 0;
+}
+
+.post-info {
+    margin: 1em 2em 0;
+    color: #999;
+    text-align: center;
+}
+
+a {
+    color: inherit;
+    text-decoration: inherit;
+}
+
+.article-archive time {
+    color: #aaa;
+}
+
+.entry-content a, .article-archive a {
+    color: #555;
+    text-decoration: underline;
+}
+
+p, li {
+    text-align: justify;
+    hyphens: auto;
+}
+
+li {
+    margin: .25em 0;
+}
+
+ul, ol {
+    padding: 0 2.5em;
+}
+
+figure {
+    margin: 4em auto;
+    padding: 0 2em;
+    text-align: center;
+}
+
+figure figcaption {
+    margin: 1em 5em 0;
+    font-size: 95%;
+    font-style: italic;
+}
+
+figure img {
+    max-width: 100%;
+}
+
+figure table {
+    text-align: initial;
+    margin: 0 auto;
+}
+table caption {
+    font-weight: 700;
+    margin: 0 0 1em;
+}
+
+table td, table th {
+    padding: .2em 1em;
+}
+
+h2 {
+    margin: 3em 0 1em;
+    font-size: 140%;
+    color: #111;
+}
+
+div.highlight {
+    margin: 1em 0;
+    padding: 1.5em;
+    overflow: scroll;
+}
+
+div.highlight pre {
+    line-height: 1.4;
+    font-size: 95%;
+    margin: 0;
+}
+
+.top-navigation {
+    display: flex;
+    justify-content: space-between;
+}
+
+.top-navigation h1 {
+    margin: 0;
+    padding: 0;
+    font-size: 100^;
+    text-transform: none;
+}
+
+.top-navigation #menu ul {
+    margin: 0;
+    padding: 0;
+}
+
+.top-navigation #menu li {
+    display: inline-block;
+    margin: 0;
+    padding: 0 0 0 1em;
+}
+
+.top-navigation #menu li:first-of-type:before {
+    content: "→";
+    color: #aaa;
+    padding-right: 1em;
+}
+
+.atom-feed {
+    color: #aaa;
+}
+
+.atom-feed:before {
+    content: "→";
+    color: #aaa;
+    padding: 0 1em;
+}
+
+@media only screen and (max-width: 40em) {
+    figure, figure figcaption {
+        padding-left: 0;
+        padding-right: 0;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    ul, ol {
+        padding-left: 1em;
+        padding-right: 0;
+    }
+}
+
+#content {
+    margin: 3em 0;
+}
+
+.article-archive td {
+    padding-left: 0;
+}
+
+.fleuron {
+    display: block;
+    margin: 6em auto 4em;
+    width: 3em;
+}
