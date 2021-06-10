@@ -44,3 +44,7 @@ LOCALE = ("usa", "en_US")
 DATE_FORMATS = {
     'en': '%Y-%m-%d',
 }
+
+STATIC_PATHS = [
+    './.nojekyll',
+]
