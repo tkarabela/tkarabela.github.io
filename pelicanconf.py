@@ -29,7 +29,7 @@ SOCIAL = (('You can add links in your config file', '#'),
           ('Another social link', '#'),)
 
 MENUITEMS = (("GitHub", "https://github.com/tkarabela"),
-             ("Big Python", "https://tkarabela.github.io/bigpython"))
+             ("Twitter", "https://twitter.com/tkarabela_"))
 
 DEFAULT_PAGINATION = False
 

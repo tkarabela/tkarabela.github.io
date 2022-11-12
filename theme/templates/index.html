@@ -5,6 +5,14 @@
 
 {% endblock %}
 
+    <aside class="aside-about">
+    <p>
+        Hi and welcome to this website! You can find my open-source work here, as well as
+        occasional technical musings.<br>&mdash; Tom
+    </p>
+    </aside>
+
+    <h2>Posts</h2>
 <table class="article-archive">
 {% for article in articles_page.object_list %}
 <tr>
@@ -13,6 +21,56 @@
 </tr>
 {% endfor %}
 </table><!-- /#posts-list -->
+
+<h2>Open-source work</h2>
+
+ <div class="grid-container">
+  <article class="grid-item project-py">
+      <h3><a href="https://github.com/tkarabela/pysubs2">pysubs2</a></h3>
+      <p>A Python library for editing subtitle files. My first Python project, maintained since 2011.</p>
+  </article>
+  <article class="grid-item project-cpp">
+      <h3><a href="https://openmesheffect.org">OpenMfx</a></h3>
+      <p>I've participated in the Open Mesh Effect project (a plug-in API for procedural geometry effects)
+      in RFC discussion and contributed code to its <a href="https://github.com/eliemichel/OpenMfx">core library</a>
+      and <a href="https://github.com/eliemichel/OpenMfxForBlender">Blender host</a>.</p>
+  </article>
+  <article class="grid-item project-cpp">
+      <h3><a href="https://github.com/tkarabela/mfxvtk">MfxVTK</a></h3>
+      <p>An <a href="https://openmesheffect.org">OpenMfx</a> plug-in wrapping selected filters
+          from the <a href="https://vtk.org">VTK</a> library, which allows one to use eg. geometry decimation
+          as a procedural effect in any OpenMfx-compatible software.</p>
+  </article>
+  <article class="grid-item project-py">
+      <h3><a href="https://ensight-reader.readthedocs.io">ensight-reader</a></h3>
+      <p>A pure Python reader for the EnSight Gold binary format (used to save unstructured data from CAE simulations).
+          Allows for efficient low-level access to the underlying data arrays.</p>
+  </article>
+  <article class="grid-item project-py">
+      <h3><a href="https://github.com/tkarabela/blender-ensight-reader">blender-ensight-reader</a></h3>
+      <p>A Blender plug-in that can import scientific or engineering data from EnSight Gold format
+      to visualize them in Blender.</p>
+  </article>
+  <article class="grid-item project-py">
+      <h3><a href="https://tkarabela.github.io/bigpython/">Big Python</a></h3>
+      <p>A series of video tutorials on Computer Science and Python.</p>
+  </article>
+  <article class="grid-item project-cpp">
+      <h3><a href="">openfx-lic</a></h3>
+      <p>An <a href="http://openfx.org/">OpenFX</a> plug-in for scientific visualization that shows a vector field
+      using <a href="https://en.wikipedia.org/wiki/Line_integral_convolution">Line Integral Convolution</a>
+      applied as a compositing effect in compatible software (eg. Nuke, Natron, or DaVinci Resolve).
+      This plug-in can enhance Blender renders of data imported with <a href="https://github.com/tkarabela/blender-ensight-reader">blender-ensight-reader</a>
+      by visualizing a vector field exported as additional EXR layers.
+      </p>
+  </article>
+  <article class="grid-item project-py">
+      <h3><a href="https://github.com/tkarabela/infinityengine-tools">TLK files parser</a></h3>
+      <p>A parser and merger for TLK dialogue files used in Infinity Engine games.
+      </p>
+  </article>
+</div>
+
 {% if articles_page.has_other_pages() %}
     {% include 'pagination.html' %}
 {% endif %}

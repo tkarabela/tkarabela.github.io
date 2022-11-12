@@ -52,7 +52,7 @@ a {
     text-decoration: inherit;
 }
 
-.entry-content a {
+.entry-content a, .grid-item p a {
     color: #555;
     text-decoration: underline;
 }
@@ -278,6 +278,51 @@ div.highlight pre {
         padding-left: 1em;
         padding-right: 0;
     }
+
+    .grid-container {
+        grid-template-columns: auto !important;
+    }
+
+    .top-navigation {
+      display: block;
+    }
+
+    .top-navigation a {
+      display: block;
+    }
+
+    #menu {
+      float: none;
+      text-align: left;
+      width: 100%;
+      margin: 0;
+    }
+
+    .top-navigation #menu li:first-of-type::before {
+      display: none;
+    }
+
+    .top-navigation #menu li {
+      display: block;
+    }
+
+    .top-navigation #menu a::before {
+      content: "→";
+      color: #aaa;
+      padding-right: 1em;
+    }
+
+    .aside-about {
+      padding: 0 !important;
+    }
+
+    h2.entry-title {
+      font-size: 160%;
+    }
+
+    .entry-header {
+        margin: 3em 0;
+    }
 }
 
 #content {
@@ -292,4 +337,40 @@ div.highlight pre {
     display: block;
     margin: 6em auto 4em;
     width: 3em;
+}
+
+.aside-about {
+  padding: 0 15%;
+  margin: 0 0 2.5em;
+  font-style: italic;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 48% 48%;
+  grid-column-gap: 4%;
+}
+.grid-item {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+.grid-item h3 a:after {
+    content: "→";
+    color: #aaa;
+    padding: 0 .5em;
+    font-weight: normal;
+}
+.grid-item.project-py h3:after, .grid-item.project-cpp h3:after {
+  content: ".py";
+  color: #ccc;
+  float: right;
+  font-weight: normal;
+  padding-left: .5em;
+}
+
+.grid-item.project-cpp h3:after {
+  content: ".cpp";
+}
+
+.grid-item h3 {
+  color: #333 !important;
 }
