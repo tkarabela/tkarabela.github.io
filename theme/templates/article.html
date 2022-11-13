@@ -10,14 +10,20 @@
     <meta name="description" content="{{article.description}}" />
   {% endif %}
 
-    <meta name="twitter:card" content="summary" />
     <meta property="og:title" content="{{ article.title|striptags }}" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="{{ SITENAME }}" />
+    <meta property="og:url" content="{{ SITEURL }}/{{ article.url }}" />
     <meta property="og:description" content="{% if article.description %}{{article.description|striptags}}{% else %}{{ article.summary|striptags }}{% endif %}" />
+    <meta property="article:published_time" content="{{ article.date.isoformat() }}"/>
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:creator" content="@tkarabela_" />
+    <meta property="twitter:title" content="{{ article.title|striptags }}" />
+    <meta property="twitter:description" content="{% if article.description %}{{article.description|striptags}}{% else %}{{ article.summary|striptags }}{% endif %}" />
 
   {% for tag in article.tags %}
     <meta name="tags" content="{{tag}}" />
+    <meta name="article:tag" content="{{tag}}" />
   {% endfor %}
 
 {% endblock %}
